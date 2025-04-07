@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Audio Call</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .call-container {
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      background-color: white;
+    }
+
+    .status-indicator {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 10px;
+    }
+
+    .status-offline {
+      background-color: #dc3545;
+    }
+
+    .status-connecting {
+      background-color: #ffc107;
+    }
+
+    .status-online {
+      background-color: #28a745;
+    }
+
+    .call-controls {
+      margin-top: 30px;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .call-button {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .call-button:hover {
+      transform: scale(1.1);
+    }
+
+    .audio-level {
+      height: 50px;
+      margin: 20px 0;
+      background-color: #f1f1f1;
+      border-radius: 25px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .audio-level-fill {
+      height: 100%;
+      width: 0%;
+      background-color: #0d6efd;
+      transition: width 0.2s;
+    }
+
+    .user-avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background-color: #e9ecef;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      color: #6c757d;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="call-container">
+      <h1 class="text-center mb-4">Random Audio Call</h1>
+
+      <div class="text-center mb-4">
+        <div id="connectionStatus">
+          <span class="status-indicator status-offline" id="statusIndicator"></span>
+          <span id="statusText">Disconnected</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 text-center">
+          <div class="user-avatar">
+            <i class="bi bi-person-fill"></i>
+          </div>
+          <h5>You</h5>
+          <div class="audio-level">
+            <div class="audio-level-fill" id="localAudioLevel"></div>
+          </div>
+        </div>
+        <div class="col-md-6 text-center">
+          <div class="user-avatar">
+            <i class="bi bi-person-fill"></i>
+          </div>
+          <h5>Stranger</h5>
+          <div class="audio-level">
+            <div class="audio-level-fill" id="remoteAudioLevel"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="call-controls">
+        <button class="btn btn-primary btn-lg call-button" id="startButton">
+          <i class="bi bi-telephone-fill"></i>
+        </button>
+        <button class="btn btn-danger btn-lg call-button" id="hangupButton" disabled>
+          <i class="bi bi-telephone-x-fill"></i>
+        </button>
+        <button class="btn btn-secondary btn-lg call-button" id="muteButton" disabled>
+          <i class="bi bi-mic-fill" id="muteIcon"></i>
+        </button>
+      </div>
+
+      <div class="mt-4 text-center">
+        <p id="callTime">00:00</p>
+        <p id="callStatus">Click the call button to find someone to talk to!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Socket.IO Client -->
+  <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+
+  <script>
+    // DOM Elements
+    const startButton = document.getElementById('startButton');
+    const hangupButton = document.getElementById('hangupButton');
+    const muteButton = document.getElementById('muteButton');
+    const muteIcon = document.getElementById('muteIcon');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const callStatus = document.getElementById('callStatus');
+    const callTime = document.getElementById('callTime');
+    const localAudioLevel = document.getElementById('localAudioLevel');
+    const remoteAudioLevel = document.getElementById('remoteAudioLevel');
+
+    // WebRTC variables
+    let localStream;
+    let peerConnection;
+    let socket;
+    let roomId;
+    let isMuted = false;
+    let callStartTime;
+    let callTimer;
+    let localAudioContext;
+    let localAnalyser;
+    let remoteAudioContext;
+    let remoteAnalyser;
+    let remoteAudio;
+
+    // Configuration for WebRTC
+    const configuration = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
+
+    // Connect to signaling server
+    function connectToServer() {
+      // Connect to the server - automatically detects the host
+      const socketUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:3000'
+        : window.location.origin;
+
+      socket = io(socketUrl);
+
+      // Socket event handlers
+      socket.on('connect', () => {
+        updateStatus('connecting', 'Connected to server. Waiting for a match...');
+      });
+
+      socket.on('joined', async (data) => {
+        roomId = data.roomId;
+        if (data.isInitiator) {
+          callStatus.textContent = 'Waiting for someone to join...';
+        } else {
+          callStatus.textContent = 'Connected to a stranger. Starting call...';
+          await createPeerConnection();
+          await createOffer();
+        }
+      });
+
+      socket.on('full', () => {
+        callStatus.textContent = 'Room is full. Please try again later.';
+      });
+
+      socket.on('offer', async (description) => {
+        if (!peerConnection) {
+          await createPeerConnection();
+        }
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(description));
+        await createAnswer();
+      });
+
+      socket.on('answer', async (description) => {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(description));
+      });
+
+      socket.on('candidate', async (candidate) => {
+        if (peerConnection) {
+          try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.error('Error adding ice candidate:', e);
+          }
+        }
+      });
+
+      socket.on('disconnected', () => {
+        callStatus.textContent = 'The other person disconnected.';
+        hangUp();
+      });
+    }
+
+    // Start the call process
+    async function start() {
+      try {
+        // Get user media
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+        // Setup audio visualization
+        setupAudioVisualization();
+
+        // Enable buttons
+        startButton.disabled = true;
+        hangupButton.disabled = false;
+        muteButton.disabled = false;
+
+        // Connect to server and join a room
+        connectToServer();
+        socket.emit('join');
+
+      } catch (e) {
+        console.error('Error getting user media:', e);
+        callStatus.textContent = 'Could not access microphone. Please check permissions.';
+      }
+    }
+
+    // Create peer connection
+    async function createPeerConnection() {
+      try {
+        peerConnection = new RTCPeerConnection(configuration);
+
+        // Add local stream tracks to peer connection
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+        });
+
+        // Create remote audio element
+        remoteAudio = document.createElement('audio');
+        remoteAudio.autoplay = true;
+        document.body.appendChild(remoteAudio);
+
+        // Handle incoming stream
+        peerConnection.ontrack = (event) => {
+          if (remoteAudio.srcObject !== event.streams[0]) {
+            remoteAudio.srcObject = event.streams[0];
+            updateStatus('online', 'Connected to a stranger');
+            startCallTimer();
+            setupRemoteAudioVisualization(event.streams[0]);
+          }
+        };
+
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit('candidate', { candidate: event.candidate, roomId });
+          }
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+          if (peerConnection.iceConnectionState === 'disconnected' ||
+            peerConnection.iceConnectionState === 'failed' ||
+            peerConnection.iceConnectionState === 'closed') {
+            hangUp();
+          }
+        };
+
+      } catch (e) {
+        console.error('Error creating peer connection:', e);
+        callStatus.textContent = 'Error setting up call. Please try again.';
+      }
+    }
+
+    // Create and send offer
+    async function createOffer() {
+      try {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit('offer', { description: offer, roomId });
+      } catch (e) {
+        console.error('Error creating offer:', e);
+      }
+    }
+
+    // Create and send answer
+    async function createAnswer() {
+      try {
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        socket.emit('answer', { description: answer, roomId });
+      } catch (e) {
+        console.error('Error creating answer:', e);
+      }
+    }
+
+    // Hang up the call
+    function hangUp() {
+      if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+      }
+
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+
+      if (socket) {
+        socket.emit('leave', { roomId });
+      }
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+
+      if (remoteAudio) {
+        remoteAudio.srcObject = null;
+        remoteAudio.remove();
+        remoteAudio = null;
+      }
+
+      // Reset UI
+      startButton.disabled = false;
+      hangupButton.disabled = true;
+      muteButton.disabled = true;
+      isMuted = false;
+      muteIcon.className = 'bi bi-mic-fill';
+      updateStatus('offline', 'Disconnected');
+      callStatus.textContent = 'Call ended. Click the call button to find someone new.';
+      callTime.textContent = '00:00';
+      localAudioLevel.style.width = '0%';
+      remoteAudioLevel.style.width = '0%';
+
+      // Clean up audio contexts
+      if (localAudioContext) {
+        localAudioContext.close();
+        localAudioContext = null;
+      }
+
+      if (remoteAudioContext) {
+        remoteAudioContext.close();
+        remoteAudioContext = null;
+      }
+    }
+
+    // Toggle mute
+    function toggleMute() {
+      if (localStream) {
+        isMuted = !isMuted;
+        localStream.getAudioTracks().forEach(track => {
+          track.enabled = !isMuted;
+        });
+
+        if (isMuted) {
+          muteIcon.className = 'bi bi-mic-mute-fill';
+        } else {
+          muteIcon.className = 'bi bi-mic-fill';
+        }
+      }
+    }
+
+    // Update connection status UI
+    function updateStatus(status, message) {
+      statusIndicator.className = `status-indicator status-${status}`;
+      statusText.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+      callStatus.textContent = message;
+    }
+
+    // Start call timer
+    function startCallTimer() {
+      callStartTime = new Date();
+      callTimer = setInterval(() => {
+        const now = new Date();
+        const diff = now - callStartTime;
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        callTime.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    // Setup audio visualization
+    function setupAudioVisualization() {
+      try {
+        localAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = localAudioContext.createMediaStreamSource(localStream);
+        localAnalyser = localAudioContext.createAnalyser();
+        localAnalyser.fftSize = 256;
+        source.connect(localAnalyser);
+
+        const bufferLength = localAnalyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function updateLocalAudioLevel() {
+          if (!localAnalyser) return;
+
+          localAnalyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+          }
+          const average = sum / bufferLength;
+          const level = Math.min(100, average * 2); // Scale to percentage
+
+          localAudioLevel.style.width = `${level}%`;
+          requestAnimationFrame(updateLocalAudioLevel);
+        }
+
+        updateLocalAudioLevel();
+      } catch (e) {
+        console.error('Error setting up audio visualization:', e);
+      }
+    }
+
+    // Setup remote audio visualization
+    function setupRemoteAudioVisualization(stream) {
+      try {
+        remoteAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = remoteAudioContext.createMediaStreamSource(stream);
+        remoteAnalyser = remoteAudioContext.createAnalyser();
+        remoteAnalyser.fftSize = 256;
+        source.connect(remoteAnalyser);
+
+        const bufferLength = remoteAnalyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function updateRemoteAudioLevel() {
+          if (!remoteAnalyser) return;
+
+          remoteAnalyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+          }
+          const average = sum / bufferLength;
+          const level = Math.min(100, average * 2); // Scale to percentage
+
+          remoteAudioLevel.style.width = `${level}%`;
+          requestAnimationFrame(updateRemoteAudioLevel);
+        }
+
+        updateRemoteAudioLevel();
+      } catch (e) {
+        console.error('Error setting up remote audio visualization:', e);
+      }
+    }
+
+    // Event listeners
+    startButton.addEventListener('click', start);
+    hangupButton.addEventListener('click', hangUp);
+    muteButton.addEventListener('click', toggleMute);
+  </script>
+</body>
+
+</html>
