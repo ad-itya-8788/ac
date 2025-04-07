@@ -4,69 +4,133 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Audio Chat</title>
+  <title>Voice Connect</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     :root {
-      --primary-color: #6366f1;
-      --success-color: #10b981;
-      --danger-color: #ef4444;
-      --warning-color: #f59e0b;
-      --bg-color: #1e1e2d;
-      --card-color: #2a2a3a;
-      --text-color: #e2e8f0;
+      --primary-color: #4a6bff;
+      --success-color: #00c853;
+      --danger-color: #ff3d57;
+      --warning-color: #ffab00;
+      --bg-color: #121212;
+      --card-color: #1e1e1e;
+      --text-color: #ffffff;
     }
 
     body {
       background-color: var(--bg-color);
       color: var(--text-color);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
-      padding: 1rem;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
     }
 
-    .chat-container {
-      max-width: 400px;
+    .call-container {
       width: 100%;
-      margin: 0 auto;
-      background-color: var(--card-color);
-      border-radius: 16px;
-      padding: 1.5rem;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    }
-
-    .status-indicator {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      display: inline-block;
-      margin-right: 8px;
-    }
-
-    .status-offline {
-      background-color: var(--danger-color);
-    }
-
-    .status-connecting {
-      background-color: var(--warning-color);
-    }
-
-    .status-online {
-      background-color: var(--success-color);
-    }
-
-    .call-controls {
+      height: 100vh;
       display: flex;
+      flex-direction: column;
+      background-color: var(--card-color);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .call-header {
+      padding: 1.5rem;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .call-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
       justify-content: center;
-      gap: 1rem;
-      margin-top: 1.5rem;
+      align-items: center;
+      padding: 1rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .call-footer {
+      padding: 2rem 1.5rem;
+      display: flex;
+      margin-bottom: 4rem;
+      justify-content: center;
+      gap: 1.5rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .user-avatar {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-color), #6a11cb);
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 48px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(74, 107, 255, 0.3);
+    }
+
+    .user-avatar .status-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      animation: pulse-ring 2s infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% {
+        transform: scale(0.9);
+        opacity: 1;
+        border-color: rgba(74, 107, 255, 0.8);
+      }
+
+      100% {
+        transform: scale(1.3);
+        opacity: 0;
+        border-color: rgba(74, 107, 255, 0);
+      }
+    }
+
+    .user-name {
+      font-size: 1.8rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    .call-status {
+      font-size: 1rem;
+      opacity: 0.8;
+      text-align: center;
+      margin-bottom: 2rem;
+      min-height: 24px;
+    }
+
+    .call-time {
+      font-size: 1rem;
+      opacity: 0.7;
+      text-align: center;
+      margin-bottom: 2rem;
     }
 
     .call-button {
-      width: 48px;
-      height: 48px;
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -75,137 +139,244 @@
       transition: all 0.2s;
       border: none;
       color: white;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
     .call-button:hover {
-      transform: scale(1.1);
+      transform: scale(1.05);
     }
 
     .call-button:active {
       transform: scale(0.95);
     }
 
+    .call-button-lg {
+      width: 70px;
+      height: 70px;
+    }
+
+    .call-button i {
+      font-size: 24px;
+    }
+
+    .call-button-lg i {
+      font-size: 28px;
+    }
+
+    .button-end {
+      background-color: var(--danger-color);
+    }
+
+    .button-start {
+      background-color: var(--success-color);
+    }
+
+    .button-mute {
+      background-color: #424242;
+    }
+
+    .button-mute.active {
+      background-color: var(--warning-color);
+    }
+
     .audio-visualizer {
+      width: 100%;
+      max-width: 300px;
       height: 6px;
       background-color: rgba(255, 255, 255, 0.1);
       border-radius: 3px;
       overflow: hidden;
-      margin: 1rem 0;
+      margin: 1rem auto;
     }
 
     .audio-level {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, var(--primary-color), #8b5cf6);
+      background: linear-gradient(90deg, var(--primary-color), #6a11cb);
       transition: width 0.1s;
     }
 
-    .user-avatar {
-      width: 60px;
-      height: 60px;
+    .ripple-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .ripple {
+      position: absolute;
       border-radius: 50%;
-      background: linear-gradient(135deg, #3b82f6, #6366f1);
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 24px;
+      background: rgba(74, 107, 255, 0.1);
+      transform: scale(0);
+      animation: ripple 3s infinite;
+      pointer-events: none;
     }
 
-    .user-info {
-      text-align: center;
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
-      opacity: 0.8;
+    .ripple:nth-child(1) {
+      width: 800px;
+      height: 800px;
+      left: -100px;
+      top: -100px;
+      animation-delay: 0s;
     }
 
-    .call-status {
-      text-align: center;
-      margin: 1rem 0;
-      font-size: 0.9rem;
+    .ripple:nth-child(2) {
+      width: 600px;
+      height: 600px;
+      left: -50px;
+      top: -50px;
+      animation-delay: 1s;
     }
 
-    .call-time {
-      text-align: center;
-      font-size: 0.8rem;
-      opacity: 0.7;
-      margin-top: 0.5rem;
+    .ripple:nth-child(3) {
+      width: 400px;
+      height: 400px;
+      left: 0;
+      top: 0;
+      animation-delay: 2s;
     }
 
-    .user-container {
-      display: flex;
-      justify-content: space-around;
-      margin: 1.5rem 0;
+    @keyframes ripple {
+      0% {
+        transform: scale(0);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 0;
+      }
     }
 
-    .user {
+    .connecting-animation {
       display: flex;
       flex-direction: column;
       align-items: center;
+      margin: 2rem 0;
     }
 
-    h1 {
-      font-size: 1.5rem;
-      text-align: center;
+    .connecting-dots {
+      display: flex;
+      gap: 10px;
       margin-bottom: 1.5rem;
-      font-weight: 600;
     }
 
-    .connection-status {
+    .connecting-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: var(--primary-color);
+      animation: bounce 1.5s infinite ease-in-out;
+    }
+
+    .connecting-dot:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .connecting-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .connecting-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-15px);
+      }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .call-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .action-button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      color: white;
+      opacity: 0.8;
+      font-size: 0.8rem;
+    }
+
+    .action-button .icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background-color: #424242;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.8rem;
-      margin-bottom: 1rem;
+      font-size: 20px;
+    }
+
+    .active .icon {
+      background-color: var(--warning-color);
     }
   </style>
 </head>
 
 <body>
-  <div class="chat-container">
-    <h1>Voice Chat</h1>
-
-    <div class="connection-status">
-      <span class="status-indicator status-offline" id="statusIndicator"></span>
-      <span id="statusText">Disconnected</span>
+  <div class="call-container">
+    <div class="ripple-background">
+      <div class="ripple"></div>
+      <div class="ripple"></div>
+      <div class="ripple"></div>
     </div>
 
-    <div class="user-container">
-      <div class="user">
-        <div class="user-avatar">
-          <i class="bi bi-person-fill"></i>
-        </div>
-        <div class="user-info">You</div>
-        <div class="audio-visualizer">
-          <div class="audio-level" id="localAudioLevel"></div>
-        </div>
+    <div class="call-header">
+      <div class="call-time" id="callTime"></div>
+    </div>
+
+    <div class="call-content">
+      <div class="user-avatar" id="userAvatar">
+        <div class="status-ring"></div>
+        <i class="bi bi-person-fill"></i>
       </div>
 
-      <div class="user">
-        <div class="user-avatar">
-          <i class="bi bi-person-fill"></i>
+      <div class="user-name" id="userName">Connecting...</div>
+
+      <div class="call-status" id="callStatus">Connecting to server</div>
+
+      <div class="connecting-animation" id="connectingAnimation">
+        <div class="connecting-dots">
+          <div class="connecting-dot"></div>
+          <div class="connecting-dot"></div>
+          <div class="connecting-dot"></div>
         </div>
-        <div class="user-info">Stranger</div>
-        <div class="audio-visualizer">
-          <div class="audio-level" id="remoteAudioLevel"></div>
-        </div>
+        <div>Looking for someone to connect with...</div>
+      </div>
+
+      <div class="audio-visualizer hidden" id="audioVisualizer">
+        <div class="audio-level" id="audioLevel"></div>
       </div>
     </div>
 
-    <div class="call-status">
-      <p id="callStatus">Ready to connect</p>
-      <p class="call-time" id="callTime"></p>
-    </div>
-
-    <div class="call-controls">
-      <button class="call-button bg-danger" id="hangupButton" disabled>
+    <div class="call-footer">
+      <button class="call-button button-end" id="hangupButton" disabled>
         <i class="bi bi-telephone-x-fill"></i>
       </button>
-      <button class="call-button bg-success" id="startButton">
+      <button class="call-button button-start call-button-lg" id="startButton">
         <i class="bi bi-telephone-fill"></i>
       </button>
-      <button class="call-button bg-secondary" id="muteButton" disabled>
+      <button class="call-button button-mute" id="muteButton" disabled>
         <i class="bi bi-mic-fill" id="muteIcon"></i>
       </button>
     </div>
@@ -226,12 +397,13 @@
     const hangupButton = document.getElementById('hangupButton');
     const muteButton = document.getElementById('muteButton');
     const muteIcon = document.getElementById('muteIcon');
-    const statusIndicator = document.getElementById('statusIndicator');
-    const statusText = document.getElementById('statusText');
     const callStatus = document.getElementById('callStatus');
     const callTime = document.getElementById('callTime');
-    const localAudioLevel = document.getElementById('localAudioLevel');
-    const remoteAudioLevel = document.getElementById('remoteAudioLevel');
+    const userName = document.getElementById('userName');
+    const userAvatar = document.getElementById('userAvatar');
+    const connectingAnimation = document.getElementById('connectingAnimation');
+    const audioVisualizer = document.getElementById('audioVisualizer');
+    const audioLevel = document.getElementById('audioLevel');
 
     // WebRTC variables
     let localStream;
@@ -241,10 +413,8 @@
     let isMuted = false;
     let callStartTime;
     let callTimer;
-    let localAudioContext;
-    let localAnalyser;
-    let remoteAudioContext;
-    let remoteAnalyser;
+    let audioContext;
+    let analyser;
     let remoteAudio;
 
     // Configuration for WebRTC
@@ -254,6 +424,12 @@
         { urls: 'stun:stun1.l.google.com:19302' }
       ]
     };
+
+    // Random names for display
+    const randomNames = [
+      "You", "You", "You", "You", "You",
+      "You", "You", "You", "You", "You"
+    ];
 
     // Connect to signaling server
     function connectToServer() {
@@ -266,22 +442,28 @@
 
       // Socket event handlers
       socket.on('connect', () => {
-        updateStatus('connecting', 'Connecting...');
+        callStatus.textContent = "Connecting to server...";
       });
 
       socket.on('joined', async (data) => {
         roomId = data.roomId;
         if (data.isInitiator) {
-          callStatus.textContent = 'Waiting for someone...';
+          callStatus.textContent = "Looking for someone...";
+          userName.textContent = "Searching...";
         } else {
-          callStatus.textContent = 'Connected!';
+          const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
+          userName.textContent = randomName;
+          callStatus.textContent = "Connecting...";
           await createPeerConnection();
           await createOffer();
         }
       });
 
       socket.on('full', () => {
-        callStatus.textContent = 'Room full. Try again.';
+        callStatus.textContent = "Couldn't find anyone. Try again.";
+        setTimeout(() => {
+          hangUp();
+        }, 2000);
       });
 
       socket.on('offer', async (description) => {
@@ -307,8 +489,10 @@
       });
 
       socket.on('disconnected', () => {
-        callStatus.textContent = 'Stranger disconnected';
-        hangUp();
+        callStatus.textContent = "Stranger disconnected";
+        setTimeout(() => {
+          hangUp();
+        }, 2000);
       });
     }
 
@@ -332,7 +516,7 @@
 
       } catch (e) {
         console.error('Error getting user media:', e);
-        callStatus.textContent = 'Microphone access denied';
+        callStatus.textContent = "Microphone access required";
       }
     }
 
@@ -355,9 +539,12 @@
         peerConnection.ontrack = (event) => {
           if (remoteAudio.srcObject !== event.streams[0]) {
             remoteAudio.srcObject = event.streams[0];
-            updateStatus('online', 'Connected');
+            const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
+            userName.textContent = randomName;
+            callStatus.textContent = "Connected";
+            connectingAnimation.classList.add('hidden');
+            audioVisualizer.classList.remove('hidden');
             startCallTimer();
-            setupRemoteAudioVisualization(event.streams[0]);
           }
         };
 
@@ -372,13 +559,16 @@
           if (peerConnection.iceConnectionState === 'disconnected' ||
             peerConnection.iceConnectionState === 'failed' ||
             peerConnection.iceConnectionState === 'closed') {
-            hangUp();
+            callStatus.textContent = "Connection lost";
+            setTimeout(() => {
+              hangUp();
+            }, 2000);
           }
         };
 
       } catch (e) {
         console.error('Error creating peer connection:', e);
-        callStatus.textContent = 'Connection error';
+        callStatus.textContent = "Connection error";
       }
     }
 
@@ -437,21 +627,18 @@
       muteButton.disabled = true;
       isMuted = false;
       muteIcon.className = 'bi bi-mic-fill';
-      updateStatus('offline', 'Disconnected');
-      callStatus.textContent = 'Call ended';
-      callTime.textContent = '';
-      localAudioLevel.style.width = '0%';
-      remoteAudioLevel.style.width = '0%';
+      muteButton.classList.remove('active');
+      callStatus.textContent = "Ready to connect";
+      userName.textContent = "Connecting...";
+      callTime.textContent = "";
+      audioLevel.style.width = '0%';
+      connectingAnimation.classList.remove('hidden');
+      audioVisualizer.classList.add('hidden');
 
-      // Clean up audio contexts
-      if (localAudioContext) {
-        localAudioContext.close();
-        localAudioContext = null;
-      }
-
-      if (remoteAudioContext) {
-        remoteAudioContext.close();
-        remoteAudioContext = null;
+      // Clean up audio context
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
       }
     }
 
@@ -465,21 +652,12 @@
 
         if (isMuted) {
           muteIcon.className = 'bi bi-mic-mute-fill';
-          muteButton.classList.remove('bg-secondary');
-          muteButton.classList.add('bg-warning');
+          muteButton.classList.add('active');
         } else {
           muteIcon.className = 'bi bi-mic-fill';
-          muteButton.classList.add('bg-secondary');
-          muteButton.classList.remove('bg-warning');
+          muteButton.classList.remove('active');
         }
       }
-    }
-
-    // Update connection status UI
-    function updateStatus(status, message) {
-      statusIndicator.className = `status-indicator status-${status}`;
-      statusText.textContent = message;
-      callStatus.textContent = message;
     }
 
     // Start call timer
@@ -497,19 +675,19 @@
     // Setup audio visualization
     function setupAudioVisualization() {
       try {
-        localAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const source = localAudioContext.createMediaStreamSource(localStream);
-        localAnalyser = localAudioContext.createAnalyser();
-        localAnalyser.fftSize = 64;
-        source.connect(localAnalyser);
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(localStream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 64;
+        source.connect(analyser);
 
-        const bufferLength = localAnalyser.frequencyBinCount;
+        const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
 
-        function updateLocalAudioLevel() {
-          if (!localAnalyser) return;
+        function updateAudioLevel() {
+          if (!analyser) return;
 
-          localAnalyser.getByteFrequencyData(dataArray);
+          analyser.getByteFrequencyData(dataArray);
           let sum = 0;
           for (let i = 0; i < bufferLength; i++) {
             sum += dataArray[i];
@@ -517,46 +695,13 @@
           const average = sum / bufferLength;
           const level = Math.min(100, average * 1.5);
 
-          localAudioLevel.style.width = `${level}%`;
-          requestAnimationFrame(updateLocalAudioLevel);
+          audioLevel.style.width = `${level}%`;
+          requestAnimationFrame(updateAudioLevel);
         }
 
-        updateLocalAudioLevel();
+        updateAudioLevel();
       } catch (e) {
         console.error('Error setting up audio visualization:', e);
-      }
-    }
-
-    // Setup remote audio visualization
-    function setupRemoteAudioVisualization(stream) {
-      try {
-        remoteAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const source = remoteAudioContext.createMediaStreamSource(stream);
-        remoteAnalyser = remoteAudioContext.createAnalyser();
-        remoteAnalyser.fftSize = 64;
-        source.connect(remoteAnalyser);
-
-        const bufferLength = remoteAnalyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-
-        function updateRemoteAudioLevel() {
-          if (!remoteAnalyser) return;
-
-          remoteAnalyser.getByteFrequencyData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < bufferLength; i++) {
-            sum += dataArray[i];
-          }
-          const average = sum / bufferLength;
-          const level = Math.min(100, average * 1.5);
-
-          remoteAudioLevel.style.width = `${level}%`;
-          requestAnimationFrame(updateRemoteAudioLevel);
-        }
-
-        updateRemoteAudioLevel();
-      } catch (e) {
-        console.error('Error setting up remote audio visualization:', e);
       }
     }
 
